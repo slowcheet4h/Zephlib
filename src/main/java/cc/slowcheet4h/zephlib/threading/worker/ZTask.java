@@ -42,6 +42,12 @@ public class ZTask<T> {
         return this;
     }
 
+    @ZEPHLIB_ONLY
+    @Deprecated
+    public ZFuture<T> future() {
+        return future;
+    }
+
     public long end() {
         return took;
     }
