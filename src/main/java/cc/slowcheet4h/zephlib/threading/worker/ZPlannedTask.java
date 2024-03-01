@@ -18,6 +18,6 @@ public class ZPlannedTask<X> extends ZTask<X> {
 
     @Override
     public ZFuture<X> queue() {
-        return pool.plan();
+        return pool._plan(this);
     }
 }

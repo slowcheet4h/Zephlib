@@ -162,13 +162,10 @@ public class ZThreadPool {
     public <X> ZPlannedTask<X> ptask(Supplier<X> task, Duration duration) { return ptask(task, duration.toMillis()); }
 
     public <X> ZFuture<X> queue(ZTask<X> task) {
-        ZFuture<X> future = ZFuture.create(task);
-        task.future(future);
-
         // queue to any of workers
         task.queue();
 
-        return future;
+        return task.future();
     }
 
     @Deprecated
@@ -188,7 +185,7 @@ public class ZThreadPool {
         final long currentTime = System.currentTimeMillis();
         final long deltaTime = task.plannedTime() - currentTime;
         if (deltaTime < 0) {
-            return queue(task);
+            return _queue(task);
         }
 
         PlannedTaskCategory category = PlannedTaskCategory.fromTime(deltaTime);
@@ -208,13 +205,10 @@ public class ZThreadPool {
      * @param <X>
      */
     public <X> X await(ZTask<X> task) {
-        ZFuture<X> future = ZFuture.create(task);
-        task.future(future);
-
         // queue to any of workers
         availableWorker().queue(task);
 
-        while (!future.completed()) {
+        while (!task.future().completed()) {
             try {
                 Thread.sleep(TASKWORKER_CHECK_INTERVAL);
             } catch (InterruptedException e) {
@@ -223,7 +217,7 @@ public class ZThreadPool {
         }
 
 
-        return future.value();
+        return task.future().value();
     }
 
     public int queueSize() {

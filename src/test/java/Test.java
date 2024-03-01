@@ -1,5 +1,7 @@
 import cc.slowcheet4h.zephlib.threading.impl.ZThreadPool;
 
+import java.time.Duration;
+
 public class Test {
 
     public static void main(String[] args) {
@@ -14,6 +16,17 @@ public class Test {
             /* .... stuff */
             return "test string";
         }).await();
+
+        threadPool.ptask(() -> {
+            System.out.println("This should run after 2000 ms");
+            return true;
+        }, 2000).queue();
+
+        threadPool.ptask(() -> {
+            System.out.println("This should run after 1000 ms");
+            return true;
+        }, Duration.ofSeconds(1)).queue();
+
 
 
         while (true) {

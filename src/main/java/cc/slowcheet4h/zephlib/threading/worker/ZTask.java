@@ -9,17 +9,18 @@ import java.util.function.Supplier;
 public class ZTask<T> {
 
     protected Supplier<T> exec;
-    private long took;
-    private ZThreadPool pool;
+    protected long took;
+    protected ZThreadPool pool;
     protected ZFuture<T> future;
 
     public ZTask(ZThreadPool _pool, Supplier<T> _exec) {
         pool = _pool;
         exec = _exec;
+        future = ZFuture.create(this);
     }
 
     public ZFuture<T> queue() {
-        return pool.queue(this);
+        return pool._queue(this);
     }
 
     public T await() {
