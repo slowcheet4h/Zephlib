@@ -1,10 +1,8 @@
 package cc.slowcheet4h.zephlib.threading.impl;
 
 import cc.slowcheet4h.zephlib.etc.marker.ZEPHLIB_ONLY;
-import cc.slowcheet4h.zephlib.threading.worker.ZFuture;
-import cc.slowcheet4h.zephlib.threading.worker.ZPlannedTask;
-import cc.slowcheet4h.zephlib.threading.worker.ZTask;
-import cc.slowcheet4h.zephlib.threading.worker.ZTaskWorker;
+import cc.slowcheet4h.zephlib.etc.properties.prop;
+import cc.slowcheet4h.zephlib.threading.worker.*;
 
 import java.time.Duration;
 import java.util.*;
@@ -25,8 +23,12 @@ public class ZThreadPool {
     protected boolean runnning;
 
     protected List<ZTaskWorker> taskWorkers = new ArrayList<>();
+    protected Object taskWorkersLock = new Object();
     protected Map<PlannedTaskCategory, List<ZPlannedTask<?>>> plannedTaskMap = new HashMap<>();
     protected Map<PlannedTaskCategory, Object> plannedTaskLocks = new HashMap<>();
+    protected long lastWorkerCheck = System.currentTimeMillis();
+    protected long workerCheckInterval = 250L;
+    protected int MAX_TASKS_PER_MINUTE = 60 * 9;
     @ZEPHLIB_ONLY
     protected ZThreadPool() { }
 
@@ -63,7 +65,6 @@ public class ZThreadPool {
 
     public void loop() {
         while (runnning) {
-
             final long currentTime = System.currentTimeMillis();
             for (PlannedTaskCategory taskCategory : PlannedTaskCategory.values()) {
                 /* should check? */
@@ -91,16 +92,45 @@ public class ZThreadPool {
                         }
 
                     }
-
-
+                    taskCategory.markAsChecked();
                 }
+            }
+
+            if (currentTime - lastWorkerCheck >= workerCheckInterval) {
+
+                int busyWorkers = 0;
+                synchronized (taskWorkersLock) {
+                    for (int i = 0; i < taskWorkers.size(); i++) {
+                        final ZTaskWorker worker = taskWorkers.get(i);
+                        int tasksPerMinute = worker.tasksPerMinute();
+                        if (tasksPerMinute >= MAX_TASKS_PER_MINUTE) {
+                            busyWorkers++;
+                        }
+                    }
+
+                    if (taskWorkers.size() < maxWorkers && busyWorkers >= (taskWorkers.size() * 0.7f)) {
+                        ZTaskWorker worker = new ZTaskWorker(this);
+                        taskWorkers.add(worker);
+                        worker.start();
+                    } else if (taskWorkers.size() > minWorkers && busyWorkers < (taskWorkers.size() * 0.3f)) {
+                        final ZTaskWorker worker = taskWorkers.get(0);
+                        worker.stopWorking();
+                        final Queue<ZTask<?>> tasks = worker.tasks();
+                        while (!tasks.isEmpty()) {
+                            _queue(tasks.poll());
+                        }
+                        taskWorkers.remove(worker);
+                    }
+                }
+
+                lastWorkerCheck = currentTime;
             }
 
 
             try {
                 Thread.sleep(POOL_CONTROL_DELAY);
             } catch (Exception ex) {
-
+                ex.printStackTrace();
             }
 
         }
@@ -160,6 +190,53 @@ public class ZThreadPool {
      * @param <X>
      */
     public <X> ZPlannedTask<X> ptask(Supplier<X> task, Duration duration) { return ptask(task, duration.toMillis()); }
+    public ZPromise promise(Runnable loop, long interval) {
+        return promise(loop, 0, interval);
+    }
+
+    public ZPromise promise(Runnable loop, Duration duration) {
+        return promise(loop, 0, duration.toMillis());
+    }
+
+    public ZPromise promise(Runnable loop, long startDelay, Duration duration) {
+        return promise(loop, startDelay, duration.toMillis());
+    }
+
+    public ZPromise promise(Runnable loop, Duration startDelay, long interval) {
+        return promise(loop, startDelay.toMillis(), interval);
+    }
+
+    public ZPromise promise(Runnable loop, Duration startDelay, Duration interval) {
+        return promise(loop, startDelay.toMillis(), interval.toMillis());
+    }
+
+
+    public ZPromise promise(Runnable loop, long startDelay, long interval) {
+        ZPromise promise = new ZPromise(loop, Math.max(startDelay, 0), interval);
+
+        final prop<Runnable> exec = new prop();
+
+        exec.set(() -> {
+            boolean run = promise.run();
+            if (run) {
+                ptask(() -> { exec.get().run(); return true; }, interval).queue();
+            }
+        });
+
+        if (startDelay <= 0) {
+           task(() -> {
+               exec.get().run();
+               return true;
+            }).queue();
+        } else {
+            ptask(() -> {
+                exec.get().run();
+                return true;
+            }, startDelay).queue();
+        }
+
+        return promise;
+    }
 
     public <X> ZFuture<X> queue(ZTask<X> task) {
         // queue to any of workers
