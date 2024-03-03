@@ -22,6 +22,7 @@ public class ZThreadPool {
     protected Thread controlThread;
     protected boolean runnning;
 
+
     protected List<ZTaskWorker> taskWorkers = new ArrayList<>();
     protected Object taskWorkersLock = new Object();
     protected Map<PlannedTaskCategory, List<ZPlannedTask<?>>> plannedTaskMap = new HashMap<>();
@@ -38,7 +39,7 @@ public class ZThreadPool {
             taskWorkers.add(worker);
             worker.start();
         }
-
+        asasaszasdasdasdz
         runnning = true;
         if (useControlThread) {
 
@@ -76,9 +77,7 @@ public class ZThreadPool {
                         List<ZPlannedTask<?>> plannedTasks = plannedTaskMap.get(taskCategory);
 
                         /* sort the list */
-                        plannedTasks.sort((pTask1, pTask2) -> {
-                            return Long.compare(pTask1.plannedTime(), pTask2.plannedTime());
-                        });
+                        plannedTasks.sort(Comparator.comparingLong(ZPlannedTask::plannedTime));
 
                         for (int i = 0; i < plannedTasks.size(); i++) {
                             final ZPlannedTask<?> task = plannedTasks.get(i);
@@ -398,7 +397,5 @@ public class ZThreadPool {
         public int checkTime() {
             return checkTime;
         }
-
-
     }
 }

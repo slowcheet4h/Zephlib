@@ -6,6 +6,7 @@ public class ZPromise {
     protected Runnable loop;
     protected long startDelay, interval;
     protected boolean running = true;
+
     @ZEPHLIB_ONLY
     @Deprecated
     public ZPromise(Runnable _loop, long _startDelay, long _interval) {
@@ -15,6 +16,12 @@ public class ZPromise {
         interval = _interval;
     }
 
+    public void stop() {
+        running = false;
+    }
+
+    @ZEPHLIB_ONLY
+    @Deprecated
     public boolean run() {
         if (running) {
             loop.run();
