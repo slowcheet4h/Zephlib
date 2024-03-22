@@ -3,6 +3,7 @@ package cc.slowcheet4h.zephlib.threading.impl;
 import cc.slowcheet4h.zephlib.etc.marker.ZEPHLIB_ONLY;
 import cc.slowcheet4h.zephlib.etc.properties.prop;
 import cc.slowcheet4h.zephlib.threading.worker.*;
+import com.google.errorprone.annotations.CheckReturnValue;
 
 import java.time.Duration;
 import java.util.*;
@@ -39,7 +40,7 @@ public class ZThreadPool {
             taskWorkers.add(worker);
             worker.start();
         }
-        asasaszasdasdasdz
+
         runnning = true;
         if (useControlThread) {
 
@@ -162,6 +163,7 @@ public class ZThreadPool {
      * @return
      * @param <X>
      */
+    @CheckReturnValue
     public <X> ZTask<X> task(Supplier<X> task) {
         return new ZTask(this, task);
     }
@@ -173,6 +175,7 @@ public class ZThreadPool {
      * @return
      * @param <X>
      */
+    @CheckReturnValue
     public <X> ZPlannedTask<X> ptask(Supplier<X> task, long afterTime) {
         if (!useControlThread) {
             /* todo: throw an custom exception */
@@ -188,6 +191,8 @@ public class ZThreadPool {
      * @return
      * @param <X>
      */
+
+    @CheckReturnValue
     public <X> ZPlannedTask<X> ptask(Supplier<X> task, Duration duration) { return ptask(task, duration.toMillis()); }
     public ZPromise promise(Runnable loop, long interval) {
         return promise(loop, 0, interval);
@@ -304,6 +309,8 @@ public class ZThreadPool {
      * finds most available worker
      * @return
      */
+
+    @CheckReturnValue
     public ZTaskWorker availableWorker() {
         ZTaskWorker result = null;
         int workCount = Integer.MAX_VALUE;
@@ -355,6 +362,7 @@ public class ZThreadPool {
             return array;
         }
 
+        @CheckReturnValue
         public static PlannedTaskCategory fromTime(long time) {
             final long currentTime = System.currentTimeMillis();
             final long deltaTime = time - currentTime;
