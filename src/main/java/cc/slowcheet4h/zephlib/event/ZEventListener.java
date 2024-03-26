@@ -2,6 +2,7 @@ package cc.slowcheet4h.zephlib.event;
 
 import cc.slowcheet4h.zephlib.etc.marker.ZEPHLIB_ONLY;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -13,6 +14,7 @@ public class ZEventListener<X> {
     protected Consumer<X> body;
     protected Class<? extends X>[] events;
     protected boolean paused;
+    protected boolean cancel;
 
     @Deprecated(forRemoval = false)
     @ZEPHLIB_ONLY
@@ -46,6 +48,10 @@ public class ZEventListener<X> {
     public ZEventListener<X> priority(Priority _priority) {
         this.priority = _priority;
         /* sort the list again */
+        for (int i = 0; i < events.length; i++) {
+            final Class<? extends X> clazz = events[i];
+            bus.sort(clazz);
+        }
         return this;
     }
 
@@ -64,15 +70,29 @@ public class ZEventListener<X> {
     }
 
     public void stop() {
-        bus.stop(this, events);
+        bus.stopListening(this, events);
     }
 
     public void stop(Class<? extends X> events) {
-        bus.stop(this, events);
+        bus.stopListening(this, events);
     }
 
     public boolean paused() {
         return paused;
+    }
+
+    @Deprecated(forRemoval = false)
+    @ZEPHLIB_ONLY
+    public void cancel() {
+        cancel = true;
+    }
+
+    @Deprecated(forRemoval = false)
+    @ZEPHLIB_ONLY
+    public boolean isCanceled() {
+        final boolean canceled = cancel;
+        cancel = false;
+        return canceled;
     }
 
     public static enum Priority {
