@@ -78,7 +78,7 @@ public class ZEventBus {
         final List<ZEventListener<?>> listeners = get(event.getClass());
         for (int i = 0; i < listeners.size(); i++) {
             final ZEventListener<?> listener = listeners.get(i);
-            INVOKE_MAP.put(Thread.currentThread(), listener);
+            //INVOKE_MAP.put(Thread.currentThread(), listener);
             listener.invoke(event);
             if (listener.isCanceled()) {
                 break;

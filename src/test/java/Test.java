@@ -5,30 +5,86 @@ import cc.slowcheet4h.zephlib.threading.impl.ZThreadPool;
 import cc.slowcheet4h.zephlib.threading.worker.ZFuture;
 
 import java.util.Random;
+import java.util.concurrent.Future;
 
 public class Test {
     public static void main(String[] args) {
-        testEventApi();
+        testPool();
     }
 
     public static void testEventApi() {
-
-        ZThreadPool pool = ZThreadPool.build();
-
         ZEventBus eventBus = ZEventBus.create();
-        eventBus.listen((e) -> {
-            new Random().nextInt();
-        }, ZEventListener.Priority.LOWEST, Integer.class);
+
+        eventBus.listen((event) -> {
+
+        }, String.class, Integer.class);
+
+        eventBus.fire(":D");
+    }
+
+    public static void testPool() {
+        System.out.println("TEST START");
+        ZThreadPool threadPool = ZThreadPool.build();
+        threadPool.task(() -> {
+            System.out.println("TEST");
+
+            threadPool.task(() -> {
+                System.out.println("5");
+
+                threadPool.task(() -> {
+                    System.out.println("6");
+                    threadPool.task(() -> {
+                        System.out.println("7");
+                        threadPool.task(() -> {
+                            System.out.println("8");
+                            threadPool.task(() -> {
+                                System.out.println("9");
 
 
-        Stopwatch stopwatch = new Stopwatch();
-        stopwatch.start();
-        for (int i = 0; i < 1000000000; i++) {
-            eventBus.fire(i);
+
+                                threadPool.task(() -> {
+                                    System.out.println("10");
+                                    return 6;
+                                }).await();
+
+                                threadPool.task(() -> {
+                                    System.out.println("11");
+                                    return 6;
+                                }).await();
+
+                                threadPool.task(() -> {
+
+                                    threadPool.task(() -> {
+                                        System.out.println("12");
+                                        return 6;
+                                    }).await();
+
+
+                                    System.out.println("13");
+                                    return 6;
+                                }).await();
+
+
+                                return 6;
+                            }).await();
+                            return 6;
+                        }).await();
+                        return 6;
+                    }).await();
+                    return 6;
+                }).await();
+
+                return 5;
+            }).await();
+
+            return 1;
+        }).await();
+
+        System.out.println("DONE");
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
-
-        long elapsed = stopwatch.stop();
-        System.out.println(String.format("IT TOOK %s", elapsed));
-
     }
 }

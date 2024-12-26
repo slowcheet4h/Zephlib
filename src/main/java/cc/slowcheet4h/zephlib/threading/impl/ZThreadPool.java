@@ -8,6 +8,7 @@ import com.google.errorprone.annotations.CheckReturnValue;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -17,11 +18,16 @@ public class ZThreadPool {
     /* settings */
     protected long TASKWORKER_CHECK_INTERVAL = 3;
     protected long POOL_CONTROL_DELAY = 3;
-    protected int minWorkers = 2, maxWorkers = 4;
+    protected int minWorkers = 3, maxWorkers = 10;
     protected int tasksPerWorker = 20;
     protected boolean useControlThread = true;
     protected Thread controlThread;
     protected boolean runnning;
+
+
+
+    /* list of tasks that needs to do */
+    protected Queue<ZTask<?>> tasks = new LinkedBlockingDeque<>();
 
 
     protected List<ZTaskWorker> taskWorkers = new ArrayList<>();
@@ -31,6 +37,7 @@ public class ZThreadPool {
     protected long lastWorkerCheck = System.currentTimeMillis();
     protected long workerCheckInterval = 250L;
     protected int MAX_TASKS_PER_MINUTE = 60 * 9;
+    private Map<Thread, ZTaskWorker> threadMap = new HashMap<>();
     @ZEPHLIB_ONLY
     protected ZThreadPool() { }
 
@@ -113,13 +120,13 @@ public class ZThreadPool {
                         taskWorkers.add(worker);
                         worker.start();
                     } else if (taskWorkers.size() > minWorkers && busyWorkers < (taskWorkers.size() * 0.3f)) {
-                        final ZTaskWorker worker = taskWorkers.get(0);
+                        ZTaskWorker worker = taskWorkers.get(0);
                         worker.stopWorking();
-                        final Queue<ZTask<?>> tasks = worker.tasks();
-                        while (!tasks.isEmpty()) {
-                            _queue(tasks.poll());
-                        }
                         taskWorkers.remove(worker);
+
+                        worker = new ZTaskWorker(this);
+                        taskWorkers.add(worker);
+                        worker.start();
                     }
                 }
 
@@ -252,10 +259,7 @@ public class ZThreadPool {
     @Deprecated
     @ZEPHLIB_ONLY
     public <X> ZFuture<X> _queue(ZTask<X> task) {
-        final ZTaskWorker worker = availableWorker();
-        if (worker != null) {
-            worker.queue(task);
-        }
+        tasks.add(task);
         return task.future();
     }
 
@@ -286,14 +290,24 @@ public class ZThreadPool {
      * @param <X>
      */
     public <X> X await(ZTask<X> task) {
-        // queue to any of workers
-        availableWorker().queue(task);
 
-        while (!task.future().completed()) {
-            try {
-                Thread.sleep(TASKWORKER_CHECK_INTERVAL);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+        ZTaskWorker worker = threadMap.get(Thread.currentThread());
+
+        if (worker != null) {
+            worker.stackTasks().add(task);
+            worker.doStackTasks();
+        } else {
+            tasks.add(task);
+        }
+
+        if (worker == null) {
+            // queue to any of workers
+            while (!task.future().completed()) {
+                try {
+                    Thread.sleep(TASKWORKER_CHECK_INTERVAL);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
 
@@ -310,19 +324,9 @@ public class ZThreadPool {
      * @return
      */
 
-    @CheckReturnValue
-    public ZTaskWorker availableWorker() {
-        ZTaskWorker result = null;
-        int workCount = Integer.MAX_VALUE;
-        for (int i = 0; i < taskWorkers.size(); i++) {
-            final ZTaskWorker worker = taskWorkers.get(i);
-            if (worker.taskCount() <= workCount) {
-                workCount = worker.taskCount();
-                result = worker;
-            }
-        }
 
-        return result;
+    public ZTask<?> poolTask() {
+        return tasks.poll();
     }
 
     /**
@@ -344,6 +348,10 @@ public class ZThreadPool {
     public ZThreadPool maxWorkers(int _maxWorkers) {
         maxWorkers = _maxWorkers;
         return this;
+    }
+
+    public Queue<ZTask<?>> tasks() {
+        return tasks;
     }
 
     public enum PlannedTaskCategory {
@@ -405,5 +413,10 @@ public class ZThreadPool {
         public int checkTime() {
             return checkTime;
         }
+
+    }
+
+    public Map<Thread, ZTaskWorker> threadMap() {
+        return threadMap;
     }
 }

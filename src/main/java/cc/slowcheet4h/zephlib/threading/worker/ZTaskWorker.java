@@ -13,12 +13,12 @@ public class ZTaskWorker extends Thread {
     /* make this interface? */
     protected ZThreadPool owner;
     protected Stopwatch timer = new Stopwatch();
-
-    /* list of tasks that needs to do */
-    protected Queue<ZTask<?>> tasks = new ArrayDeque<>();
     protected List<Long> lastTimeStamps = new ArrayList<>();
     protected Stopwatch tpmTimer = new Stopwatch();
     protected boolean running;
+    protected boolean busy;
+    private Queue<ZTask<?>> stackTasks = new ArrayDeque<>();
+
 
     public ZTaskWorker(ZThreadPool _owner) {
         owner = _owner;
@@ -26,26 +26,14 @@ public class ZTaskWorker extends Thread {
 
     @Override
     public void run() {
+        owner.threadMap().put(Thread.currentThread(), this);
         tpmTimer.start();
         running = true;
         while (running) {
-
             final long currentTime = System.currentTimeMillis();
-            if (!tasks.isEmpty()) {
-                final ZTask task = tasks.poll();
-                timer.start();
-                lastTimeStamps.add(currentTime);
-                final Object result = task.exec.get();
-                long took = timer.stop();
-                task.future.complete(result);
-                task.end(took);
-            }
-
-            if (tpmTimer.elapsed() > 1000 && !lastTimeStamps.isEmpty()) {
-                /* removes timestamps older than 1 minute */
-                lastTimeStamps.removeIf((t) -> currentTime - t > 60000);
-                /* resets the check delay */
-                tpmTimer.start();
+            final ZTask task = nextTask();
+            if (task != null) {
+                executeTask(task);
             }
 
             try {
@@ -57,21 +45,55 @@ public class ZTaskWorker extends Thread {
        // super.run();
     }
 
+    private void executeTask(ZTask task) {
+        final long currentTime = System.currentTimeMillis();
+
+        timer.start();
+        busy(true);
+        lastTimeStamps.add(currentTime);
+        final Object result = task.exec.get();
+        long took = timer.stop();
+        task.future.complete(result);
+        task.end(took);
+        busy(false);
+
+        if (tpmTimer.elapsed() > 1000 && !lastTimeStamps.isEmpty()) {
+            /* removes timestamps older than 1 minute */
+            lastTimeStamps.removeIf((t) -> currentTime - t > 60000);
+
+            /* resets the check delay */
+            tpmTimer.start();
+        }
+
+    }
+
+    public void doStackTasks() {
+        ZTask task;
+        while ((task = stackTasks.poll()) != null) {
+            executeTask(task);
+        }
+    }
+
+    private ZTask<?> nextTask() {
+        return owner.poolTask();
+    }
+
+    public boolean busy() {
+        return busy;
+    }
+
+    public ZTaskWorker busy(boolean _busy) {
+        this.busy = _busy;
+        return this;
+    }
+
     /* how many tasks get executed in last 1 minute */
     public int tasksPerMinute() {
         return lastTimeStamps.size();
     }
 
-    public int taskCount() {
-        return tasks.size();
-    }
-
-    public void queue(ZTask<?> task) {
-        tasks.add(task);
-    }
-
-    public Queue<ZTask<?>> tasks() {
-        return tasks;
+    public Queue<ZTask<?>> stackTasks() {
+        return stackTasks;
     }
 
     public ZTaskWorker stopWorking() {
