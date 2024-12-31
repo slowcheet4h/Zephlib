@@ -17,8 +17,9 @@ public class ZTaskWorker extends Thread {
     protected Stopwatch tpmTimer = new Stopwatch();
     protected boolean running;
     protected boolean busy;
-    private Queue<ZTask<?>> stackTasks = new ArrayDeque<>();
 
+
+    // maybe add stacktask again
 
     public ZTaskWorker(ZThreadPool _owner) {
         owner = _owner;
@@ -30,7 +31,6 @@ public class ZTaskWorker extends Thread {
         tpmTimer.start();
         running = true;
         while (running) {
-            final long currentTime = System.currentTimeMillis();
             final ZTask task = nextTask();
             if (task != null) {
                 executeTask(task);
@@ -45,7 +45,7 @@ public class ZTaskWorker extends Thread {
        // super.run();
     }
 
-    private void executeTask(ZTask task) {
+    public void executeTask(ZTask task) {
         final long currentTime = System.currentTimeMillis();
 
         timer.start();
@@ -67,12 +67,6 @@ public class ZTaskWorker extends Thread {
 
     }
 
-    public void doStackTasks() {
-        ZTask task;
-        while ((task = stackTasks.poll()) != null) {
-            executeTask(task);
-        }
-    }
 
     private ZTask<?> nextTask() {
         return owner.poolTask();
@@ -90,10 +84,6 @@ public class ZTaskWorker extends Thread {
     /* how many tasks get executed in last 1 minute */
     public int tasksPerMinute() {
         return lastTimeStamps.size();
-    }
-
-    public Queue<ZTask<?>> stackTasks() {
-        return stackTasks;
     }
 
     public ZTaskWorker stopWorking() {

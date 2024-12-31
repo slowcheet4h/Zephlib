@@ -3,6 +3,7 @@ import cc.slowcheet4h.zephlib.event.ZEventBus;
 import cc.slowcheet4h.zephlib.event.ZEventListener;
 import cc.slowcheet4h.zephlib.threading.impl.ZThreadPool;
 import cc.slowcheet4h.zephlib.threading.worker.ZFuture;
+import cc.slowcheet4h.zephlib.threading.worker.ZTask;
 
 import java.util.Random;
 import java.util.concurrent.Future;
@@ -25,60 +26,21 @@ public class Test {
     public static void testPool() {
         System.out.println("TEST START");
         ZThreadPool threadPool = ZThreadPool.build();
-        threadPool.task(() -> {
-            System.out.println("TEST");
-
-            threadPool.task(() -> {
-                System.out.println("5");
-
-                threadPool.task(() -> {
-                    System.out.println("6");
-                    threadPool.task(() -> {
-                        System.out.println("7");
-                        threadPool.task(() -> {
-                            System.out.println("8");
-                            threadPool.task(() -> {
-                                System.out.println("9");
 
 
 
-                                threadPool.task(() -> {
-                                    System.out.println("10");
-                                    return 6;
-                                }).await();
-
-                                threadPool.task(() -> {
-                                    System.out.println("11");
-                                    return 6;
-                                }).await();
-
-                                threadPool.task(() -> {
-
-                                    threadPool.task(() -> {
-                                        System.out.println("12");
-                                        return 6;
-                                    }).await();
-
-
-                                    System.out.println("13");
-                                    return 6;
-                                }).await();
-
-
-                                return 6;
-                            }).await();
-                            return 6;
-                        }).await();
-                        return 6;
-                    }).await();
-                    return 6;
-                }).await();
-
-                return 5;
-            }).await();
-
+        final int result = threadPool.task(() -> {
             return 1;
         }).await();
+
+        final ZFuture<Integer> anan = threadPool.task(() -> {
+
+
+            return 15;
+        }).queue();
+
+
+
 
         System.out.println("DONE");
         try {

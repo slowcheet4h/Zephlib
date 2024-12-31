@@ -294,8 +294,7 @@ public class ZThreadPool {
         ZTaskWorker worker = threadMap.get(Thread.currentThread());
 
         if (worker != null) {
-            worker.stackTasks().add(task);
-            worker.doStackTasks();
+            worker.executeTask(task);
         } else {
             tasks.add(task);
         }
